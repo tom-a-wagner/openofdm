@@ -136,6 +136,17 @@ module dot11 (
 wire [19:0] n_bit_in_last_sym_tmp;
 assign n_bit_in_last_sym = n_bit_in_last_sym_tmp[9:0];
 
+// -------------- DEBUG for rx_stop_state4e012345-------------------------------
+`DEBUG_PREFIX reg  [14:0] timeout_counter;
+always @(posedge clock) begin
+  if ( (reset==1) || (~(state==S_DETECT_HT)) ) begin
+    timeout_counter <= 0;
+  end else begin
+    timeout_counter <= ( (timeout_counter == 15'h7fff)? timeout_counter : (timeout_counter+1) );
+  end
+end
+// -------------- DEBUG for rx_stop_state4e012345-------------------------------
+
 ////////////////////////////////////////////////////////////////////////////////
 // extra info output to ease side info and viterbi state monitor
 ////////////////////////////////////////////////////////////////////////////////

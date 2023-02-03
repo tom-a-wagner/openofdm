@@ -1,8 +1,9 @@
-`include "openofdm_rx_pre_def.v"
-
 `timescale 1ns/1ps
 
+`include "openofdm_rx_pre_def.v"
+
 module dot11_tb;
+
 `include "common_params.v"
 
 `ifdef BETTER_SENSITIVITY
@@ -33,6 +34,12 @@ wire receiver_rst;
 
 wire sig_valid = (pkt_header_valid_strobe&pkt_header_valid);
 
+
+wire [4:0] state;
+wire signal_watchdog_enable;
+wire [31:0] equalizer;
+wire equalizer_valid;
+  
 integer run_out_of_iq_sample;
 integer iq_count, iq_count_tmp, end_dl_count;
 
@@ -100,6 +107,8 @@ integer equalizer_mag_sq_fd;
 integer equalizer_out_fd;
 
 integer file_i, file_q, file_rssi_half_db, iq_sample_file;
+
+assign signal_watchdog_enable = (state <= S_DECODE_SIGNAL);
 
 initial begin
     // $dumpfile("dot11.vcd");
@@ -524,19 +533,35 @@ end
 signal_watchdog signal_watchdog_inst (
     .clk(clock),
     .rstn(~reset),
-    .enable(~demod_is_ongoing),
-
+//    .enable(~demod_is_ongoing),
+    .enable(signal_watchdog_enable),
+    
     .i_data(sample_in[31:16]),
     .q_data(sample_in[15:0]),
     .iq_valid(sample_in_strobe),
 
     .signal_len(pkt_len),
     .sig_valid(sig_valid),
+    
+    .power_trigger(1),
 
-    .min_signal_len_th(0),
-    .max_signal_len_th(16'hFFFF),
-    .dc_running_sum_th(65),
-
+    // // configuration for disabling
+//    .min_signal_len_th(0),
+//    .max_signal_len_th(16'hFFFF),
+//    .dc_running_sum_th(65),
+    
+    // // configuration for normal
+    .min_signal_len_th(14),
+    .max_signal_len_th(1700),
+    .dc_running_sum_th(64),
+    
+    // equalizer monitor: the normalized constellation shoud not be too small (like only has 1 or 2 bits effective)
+    .equalizer_monitor_enable(1),
+    .small_eq_out_counter_th(8),
+    .state(state),
+	.equalizer(equalizer),
+	.equalizer_valid(equalizer_valid),
+		
     .receiver_rst(receiver_rst)
 );
 
@@ -564,7 +589,11 @@ dot11 dot11_inst (
     .demod_is_ongoing(demod_is_ongoing),
     .pkt_header_valid(pkt_header_valid),
     .pkt_header_valid_strobe(pkt_header_valid_strobe),
-    .pkt_len(pkt_len)
+    .pkt_len(pkt_len),
+    
+    .state(state),
+	.equalizer_out(equalizer),
+    .equalizer_out_strobe(equalizer_valid)
 );
 
 /*

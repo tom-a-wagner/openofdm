@@ -155,7 +155,7 @@ end
 assign ofdm_symbol_eq_out_pulse = (equalizer_state==4 && equalizer_state_reg==8);
 
 always @(posedge clock) begin
-    if (reset==1) begin
+    if (reset_without_watchdog==1) begin
         state_history <= 0;
         equalizer_state_reg <= 0;
     end else begin

@@ -748,7 +748,7 @@ always @(posedge clock) begin
                 if (equalizer_out_strobe) begin
                     abs_eq_i <= eq_out_i[15]? ~eq_out_i+1: eq_out_i;
                     abs_eq_q <= eq_out_q[15]? ~eq_out_q+1: eq_out_q;
-                    if (abs_eq_q > abs_eq_i) begin
+                    if (abs_eq_q >= abs_eq_i) begin // Add "=" to prevent state stuck. Push to S_HT_SIGNAL and hope there is error
                         rot_eq_count <= rot_eq_count + 1;
                     end else if (abs_eq_q < abs_eq_i) begin
                         normal_eq_count <= normal_eq_count + 1;

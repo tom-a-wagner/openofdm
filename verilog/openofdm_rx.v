@@ -1,8 +1,7 @@
 // Xianjun jiao. putaoshu@msn.com; xianjun.jiao@imec.be;
+`timescale 1 ns / 1 ps
 
 `include "openofdm_rx_pre_def.v"
-
-`timescale 1 ns / 1 ps
 `include "openofdm_rx_git_rev.v"
 
 `ifdef OPENOFDM_RX_ENABLE_DBG
@@ -81,7 +80,7 @@
 		output wire s00_axi_rvalid,
 		input  wire s00_axi_rready
 	);
-
+`include "common_params.v"
 	// reg0~19 for config write; from reg20 for reading status
 	wire [(C_S00_AXI_DATA_WIDTH-1):0] slv_reg0; 
 	wire [(C_S00_AXI_DATA_WIDTH-1):0] slv_reg1; // 
@@ -120,6 +119,10 @@
   wire [(C_S00_AXI_DATA_WIDTH-1):0] slv_reg31; 
 
 	`DEBUG_PREFIX wire [(RSSI_HALF_DB_WIDTH-1):0] rx_sensitivity_th;
+
+  `DEBUG_PREFIX wire [4:0] state;
+
+  `DEBUG_PREFIX wire signal_watchdog_enable;
 	wire power_trigger;
 	wire sig_valid = (pkt_header_valid_strobe&pkt_header_valid);
 	wire receiver_rst;
@@ -128,10 +131,12 @@
 
 	assign rx_sensitivity_th = slv_reg2[(RSSI_HALF_DB_WIDTH-1):0];
 
+  assign signal_watchdog_enable = (state <= S_DECODE_SIGNAL);
 	signal_watchdog signal_watchdog_inst (
 		.clk(s00_axi_aclk),
 		.rstn(s00_axi_aresetn),
-		.enable(~demod_is_ongoing),
+		// .enable(~demod_is_ongoing),
+    .enable(signal_watchdog_enable),
 
 		.i_data(sample_in[31:16]),
 		.q_data(sample_in[15:0]),
@@ -145,6 +150,13 @@
 		.min_signal_len_th(slv_reg4[15:12]),
     .max_signal_len_th(slv_reg4[31:16]),
 		.dc_running_sum_th(slv_reg2[23:16]),
+
+    // equalizer monitor: the normalized constellation shoud not be too small (like only has 1 or 2 bits effective)
+    .equalizer_monitor_enable((~slv_reg1[16])),
+    .small_eq_out_counter_th(slv_reg5[9:4]),
+    .state(state),
+		.equalizer(equalizer),
+		.equalizer_valid(equalizer_valid),
 
 		.receiver_rst(receiver_rst)
 	);
@@ -194,7 +206,7 @@
 		// DEBUG PORTS
 		/////////////////////////////////////////////////////////
 		// decode status
-		.state(),
+		.state(state),
 		.status_code(),
 		.state_changed(state_changed),
 		.state_history(slv_reg20),

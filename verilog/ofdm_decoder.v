@@ -49,6 +49,8 @@ wire [5:0] deinterleave_out;
 wire deinterleave_out_strobe;
 wire [1:0] erase;
 
+wire m_axis_data_tvalid ;
+
 // assign conv_decoder_out_stb = vit_ce & vit_rdy;
 assign conv_decoder_out_stb = m_axis_data_tvalid; // vit_rdy was used as data valid in the old version of the core, which is no longer the case 
 reg [3:0] skip_bit;
@@ -103,7 +105,6 @@ viterbi_v7_0 viterbi_inst (
     .data_out(conv_decoder_out)
 );
 */
-wire m_axis_data_tvalid ;
 //reg [4:0] idle_wire_5bit ;
 //wire [6:0] idle_wire_7bit ; 
 viterbi_v7_0 viterbi_inst (

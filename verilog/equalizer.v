@@ -32,7 +32,6 @@ module equalizer
     output wire csi_valid
 );
 
-
 // mask[0] is DC, mask[1:26] -> 1,..., 26
 // mask[38:63] -> -26,..., -1
 localparam SUBCARRIER_MASK =
@@ -51,7 +50,6 @@ localparam DATA_SUBCARRIER_MASK =
 localparam HT_DATA_SUBCARRIER_MASK = 
     HT_SUBCARRIER_MASK ^ PILOT_MASK;
 
-
 // -1,..,-26, 26,..,1
 localparam LTS_REF =
     64'b0000101001100000010100110000000000000000010101100111110101001100;
@@ -59,15 +57,24 @@ localparam LTS_REF =
 localparam HT_LTS_REF =
     64'b0000101001100000010100110000000000011000010101100111110101001100;
 
-
 localparam POLARITY = 
     127'b1111111000111011000101001011111010101000010110111100111001010110011000001101101011101000110010001000000100100110100111101110000;
 
 // 21, 7, -7, -21
 localparam HT_POLARITY = 4'b1000;
 
-
 localparam IN_BUF_LEN_SHIFT = 6;
+
+localparam S_FIRST_LTS = 0;
+localparam S_SECOND_LTS = 1;
+localparam S_SMOOTH_CH_DC = 2;
+localparam S_SMOOTH_CH_LTS = 3;
+localparam S_GET_POLARITY = 4;
+localparam S_CPE_ESTIMATE = 5;
+localparam S_PILOT_PE_CORRECTION = 6; 
+localparam S_LVPE_ESTIMATE = 7;
+localparam S_ALL_SC_PE_CORRECTION = 8;
+localparam S_HT_LTS = 9;
 
 reg enable_delay;
 wire reset_internal = (enable==0 && enable_delay==1);//reset internal after the module is disabled in case the disable lock the state/stb to a non-end state.
@@ -200,12 +207,14 @@ reg signed [18:0] lts_sum_q;
 reg [2:0] lts_mv_avg_len;
 reg lts_div_in_stb;
 
+reg prod_in_strobe;
+wire prod_out_strobe;
+
 wire [31:0] dividend_i = (state == S_SMOOTH_CH_DC || state == S_SMOOTH_CH_LTS) ? (lts_sum_i[18] == 0 ? {13'h0,lts_sum_i} : {13'h1FFF,lts_sum_i}) : (state == S_ALL_SC_PE_CORRECTION ? prod_i_scaled : 0);
 wire [31:0] dividend_q = (state == S_SMOOTH_CH_DC || state == S_SMOOTH_CH_LTS) ? (lts_sum_q[18] == 0 ? {13'h0,lts_sum_q} : {13'h1FFF,lts_sum_q}) : (state == S_ALL_SC_PE_CORRECTION ? prod_q_scaled : 0);
 wire [23:0] divisor_i = (state == S_SMOOTH_CH_DC || state == S_SMOOTH_CH_LTS) ? {21'b0,lts_mv_avg_len} : (state == S_ALL_SC_PE_CORRECTION ? mag_sq[23:0] : 1);
 wire [23:0] divisor_q = (state == S_SMOOTH_CH_DC || state == S_SMOOTH_CH_LTS) ? {21'b0,lts_mv_avg_len} : (state == S_ALL_SC_PE_CORRECTION ? mag_sq[23:0] : 1);
 wire div_in_stb = (state == S_SMOOTH_CH_DC || state == S_SMOOTH_CH_LTS) ? lts_div_in_stb : (state == S_ALL_SC_PE_CORRECTION ? prod_out_strobe : 0);
-
 
 reg [15:0] num_output;
 wire [31:0] quotient_i;
@@ -218,9 +227,6 @@ wire [31:0] lts_div_q = quotient_q;
 wire div_out_stb;
 wire norm_out_stb = div_out_stb;
 wire lts_div_out_stb = div_out_stb;
-
-reg prod_in_strobe;
-wire prod_out_strobe;
 
 // for side channel
 reg sample_in_strobe_dly;
@@ -389,17 +395,6 @@ divider lvpe_inst (
     .quotient(lvpe),
     .output_strobe(lvpe_out_stb)
 );
-
-localparam S_FIRST_LTS = 0;
-localparam S_SECOND_LTS = 1;
-localparam S_SMOOTH_CH_DC = 2;
-localparam S_SMOOTH_CH_LTS = 3;
-localparam S_GET_POLARITY = 4;
-localparam S_CPE_ESTIMATE = 5;
-localparam S_PILOT_PE_CORRECTION = 6; 
-localparam S_LVPE_ESTIMATE = 7;
-localparam S_ALL_SC_PE_CORRECTION = 8;
-localparam S_HT_LTS = 9;
 
 always @(posedge clock) begin
     if (reset|reset_internal) begin
